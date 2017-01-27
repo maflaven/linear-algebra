@@ -1,12 +1,16 @@
 from math import sqrt, acos, pi
 from decimal import Decimal, getcontext
 
-getcontext().prex = 30
+getcontext().prec = 30
 
 
 class Vector(object):
+
+    CANNOT_NORMALIZE_ZERO_VECTOR_MSG = 'Cannot normalize the zero vector'
+    NO_UNIQUE_PARALLEL_COMPONENT_MSG = 'No unique component parallel to the zero vector'
+    NO_UNIQUE_ORTHOGONAL_COMPONENT_MSG = 'No unique component orthogonal to the zero vector'
+
     def __init__(self, coordinates):
-        CANNOT_NORMALIZE_ZERO_VECTOR_MSG = 'Cannot normalize the zero vector'
 
         try:
             if not coordinates:
@@ -28,42 +32,55 @@ class Vector(object):
     def __eq__(self, v):
         return self.coordinates == v.coordinates
 
+
     def plus(self, v):
-        result = []
-
-        for i in xrange( max(self.dimension, v.dimension) ):
-            result.append(self.coordinates[i] + v.coordinates[i])
-
+        result = [x + y for x, y in zip(self.coordinates, v.coordinates)]
         return Vector(result)
+
 
     def minus(self, v):
-        result = [x + y for x, y in zip(self.coordinates, v.coordinates)]
-
+        result = [x - y for x, y in zip(self.coordinates, v.coordinates)]
         return Vector(result)
+
 
     def times_scalar(self, c):
         result = [Decimal(c) * x for x in self.coordinates]
-
         return Vector(result)
+
 
     def magnitude(self):
         square_sum = sum([x**2 for x in self.coordinates])
+        return Decimal( sqrt(square_sum) )
 
-        return sqrt(square_sum)
 
     def normalized(self):
         try:
             magnitude = self.magnitude()
-
-            return self.times_scalar(1./magnitude)
+            return self.times_scalar(Decimal('1.0') / magnitude)
 
         except ZeroDivisionError:
             raise Exception(self.CANNOT_NORMALIZE_ZERO_VECTOR_MSG)
 
+
+    def is_orthogonal_to(self, v, tolerance=1e-10):
+        return abs(self.dot(v)) < tolerance
+
+
+    def is_parallel_to(self, v):
+        return ( self.is_zero() or
+                v.is_zero() or
+                self.angle_with(v) == 0 or
+                self.angle_with(v) == pi )
+
+
+    def is_zero(self, tolerance=1e-10):
+        return self.magnitude() < tolerance
+
+
     def dot(self, v):
         result = [x * y for x, y in zip(self.coordinates, v.coordinates)]
-
         return sum(result)
+
 
     def angle_with(self, v, in_degrees=False):
         try:
@@ -80,5 +97,30 @@ class Vector(object):
         except Exception as e:
             if str(e) == self.CANNOT_NORMALIZE_ZERO_VECTOR_MSG:
                 raise Exception('Cannot compute an angle with the zero vector')
+            else:
+                raise e
+
+
+    def component_orthogonal_to(self, basis):
+        try:
+            projection = self.component_parallel_to(basis)
+            return self.minus(projection)
+
+        except Exception as e:
+            if str(e) == self.NO_UNIQUE_PARALLEL_COMPONENT_MSG:
+                raise Exception(self.NO_UNIQUE_ORTHOGONAL_COMPONENT_MSG)
+            else:
+                raise e
+
+
+    def component_parallel_to(self, basis):
+        try:
+            u = basis.normalized()
+            weight = self.dot(u)
+            return u.times_scalar(weight)
+
+        except Exception as e:
+            if str(e) == self.CANNOT_NORMALIZE_ZERO_VECTOR_MSG:
+                raise Exception(self.NO_UNIQUE_PARALLEL_COMPONENT_MSG)
             else:
                 raise e
