@@ -1,4 +1,4 @@
-from math import sqrt, acos, pi
+from math import sqrt, sin, acos, pi
 from decimal import Decimal, getcontext
 
 getcontext().prec = 30
@@ -9,6 +9,7 @@ class Vector(object):
     CANNOT_NORMALIZE_ZERO_VECTOR_MSG = 'Cannot normalize the zero vector'
     NO_UNIQUE_PARALLEL_COMPONENT_MSG = 'No unique component parallel to the zero vector'
     NO_UNIQUE_ORTHOGONAL_COMPONENT_MSG = 'No unique component orthogonal to the zero vector'
+    ONLY_DEFINED_IN_TWO_THREE_DIMS_MSG = '[replace this for proper message]'
 
     def __init__(self, coordinates):
 
@@ -26,7 +27,8 @@ class Vector(object):
 
 
     def __str__(self):
-        return 'Vector: {}'.format(self.coordinates)
+        coordinates_as_floats = map(float, self.coordinates)
+        return 'Vector: {}'.format(coordinates_as_floats)
 
 
     def __eq__(self, v):
@@ -80,6 +82,38 @@ class Vector(object):
     def dot(self, v):
         result = [x * y for x, y in zip(self.coordinates, v.coordinates)]
         return sum(result)
+
+
+    def cross(self, v):
+        try:
+            x_1, y_1, z_1 = self.coordinates
+            x_2, y_2, z_2 = v.coordinates
+            new_coordinates = [ y_1 * z_2 - y_2 * z_1,
+                                -(x_1 * z_2 - x_2 * z_1),
+                                x_1 * y_2 - x_2 * y_1 ]
+            return Vector(new_coordinates)
+
+        except ValueError as e:
+            msg = str(e)
+
+            if msg == 'need more than 2 values to unpack':
+                self_embedded_in_R3 = Vector(self.coordinates + ('0',))
+                v_embedded_in_R3 = Vector(self.coordinates + ('0',))
+                return self.embedded_in_R3.cross(v.embedded_in_R3)
+            elif (msg == 'too many value to unpack' or
+                  msg == 'need more than 1 value to unpack'):
+                raise Exception(self.ONLY_DEFINED_IN_TWO_THREE_DIMS_MSG)
+            else:
+                raise e
+
+
+    def area_of_parallelogram_with(self, v):
+        cross_product = self.cross(v)
+        return cross_product.magnitude()
+
+
+    def area_of_triangle_with(self, v):
+        return self.area_of_parallelogram_with(v) / Decimal('2.0')
 
 
     def angle_with(self, v, in_degrees=False):
